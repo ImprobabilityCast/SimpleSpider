@@ -144,8 +144,6 @@ class Crawler:
 
 # TODO code refacor: have this method return all the links it finds. filter in caller
 
-        # Since the values placed in self.visited and parsed links are
-        # be very similar to each other, a binary tree may be more efficient
         for chunk in raw_links:
             parsed = self.parseLink(url_obj.fullPath, chunk)
             if (parsed is not None and parsed not in self.places2go
@@ -215,6 +213,7 @@ class Crawler:
 
 
 def main():
+    # this location has ~13,000 files in it. Good place to test.
     context = "http://localhost/php-manual-en/"
     place = "./"
     
