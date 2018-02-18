@@ -210,6 +210,7 @@ class Crawler:
             print("list size: " + str(len(self.places2go)))
             print("Pages crawled this session: " + str(self.crawlCount))
 
+            # sleep for longer (7-15min) when running 4 real.
             self.coolSleep(0.5)
 
 
