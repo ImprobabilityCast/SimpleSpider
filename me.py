@@ -4,6 +4,7 @@
 import os
 import re
 import requests
+import sys
 import time
 from collections import deque
 
@@ -31,7 +32,7 @@ class Crawler:
         self.places2go.append(url)
         self.visited = set()
         self.crawlCount = 0
-        # self.pattern = re.compile("(<a |)")
+        self.pattern = re.compile("(href|src)=\\\\?(\"|')")
 
 
     def __enter__(self):
@@ -68,12 +69,12 @@ class Crawler:
         return result
 
 
+    # requires data to begin with the url
     # returns None if the url is from a different doamin
     def parseLink (self, context, data):
-        start = data.find("href=") + 6
-        quote = data[start - 1]
-        end = data.find(quote, start)
-        url = data[start:end]
+        # this will not return None unless the html is REALLY crappy
+        end = re.search("'|\"", data).start(0)
+        url = data[:end]
 
         url = self.addSlash(url)
         url = self.removeBookmark(url)
@@ -137,17 +138,18 @@ class Crawler:
         
         self.save(file_path, response.content)
         
-        raw_links = response.text.split("<a ")
-        # There will be no href in the first split
-        if len(raw_links) > 0:
-            raw_links.pop(0)
+        # Note: There will be no href in the first split
+        raw_links = self.pattern.split(response.text)
 
-        for chunk in raw_links:
-            parsed = self.parseLink(url_obj.fullPath, chunk)
+        # Skip over every 3 elements 'cause the regex subpattern matches are kept.
+        idx = 3
+        while idx < len(raw_links):
+            parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
             if (parsed is not None and parsed not in self.places2go
                     and parsed not in self.visited):
                 self.places2go.append(parsed)
                 print("adding url: " + parsed)
+            idx += 3
 
 
     def loadLines(self, file_name):
@@ -199,7 +201,7 @@ class Crawler:
         while 0 != len(self.places2go):
             url = self.places2go.popleft()
             # self.get may update the length of self.places2go
-            print("Downloading: " + url)
+            print("\nDownloading: " + url)
             self.get(url)
             if self.crawlCount % 3:
                 self.saveState()
@@ -207,7 +209,7 @@ class Crawler:
             print("Pages crawled this session: " + str(self.crawlCount))
 
             # sleep for longer (7-15min) when running 4 real.
-            self.coolSleep(0.5)
+            self.coolSleep(1)
 
 
 def main():
@@ -216,7 +218,9 @@ def main():
     place = "./"
     
     with Crawler(place, context) as spider:
-        spider.loadState()
+        if len(sys.argv) < 2 or sys.argv[1] != "clean":
+            spider.loadState()
+
         spider.recursivePull()
     
 
