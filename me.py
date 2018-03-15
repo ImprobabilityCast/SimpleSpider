@@ -31,6 +31,7 @@ class Crawler:
         self.places2go.append(url)
         self.visited = set()
         self.crawlCount = 0
+        # self.pattern = re.compile("(<a |)")
 
 
     def __enter__(self):
@@ -140,9 +141,6 @@ class Crawler:
         # There will be no href in the first split
         if len(raw_links) > 0:
             raw_links.pop(0)
-
-
-# TODO code refacor: have this method return all the links it finds. filter in caller
 
         for chunk in raw_links:
             parsed = self.parseLink(url_obj.fullPath, chunk)
