@@ -216,6 +216,14 @@ class Crawler:
             self.coolSleep(1)
 
 
+def printHelp():
+    print("""web.cse crawler - v1.and.only
+
+            USEAGE:
+                
+            """)
+
+
 def main():
     # this location has ~13,000 files in it. Good place to test.
     context = "http://localhost/php-manual-en/"
