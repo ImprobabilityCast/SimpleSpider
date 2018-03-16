@@ -80,7 +80,7 @@ class Crawler:
         url = self.removeBookmark(url)
         
         root = context[:context.find(self.domain) + self.name_len]
-        reg = re.compile("((ftp|http)(s)?://){1}(www.)?")
+        reg = re.compile("((f|ht)tps?://)")
         result = None
         
         if reg.match(url) == None:
@@ -89,10 +89,14 @@ class Crawler:
                 result = context + url[2:]
             elif url_len == 1 and url[0] == "/":
                 result = root + "/"
+            # filter out  empty urls and urls like mailto:me@me.com
             elif url_len != 0 and ":" not in url:
                 result = context + url
-        elif url[(url.find("://") + 3):].find(self.domain) == 0:
-            result = root + url[url.find(self.domain) + self.name_len:]
+        else:
+            idx = url.find("://") + 3
+            if url.find(self.domain, idx) == 0
+                    or url.find("www." + self.domain, idx) == 0:
+                result = url
 
         return result
 
