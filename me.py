@@ -94,8 +94,8 @@ class Crawler:
                 result = context + url
         else:
             idx = url.find("://") + 3
-            if url.find(self.domain, idx) == 0
-                    or url.find("www." + self.domain, idx) == 0:
+            if (url.find(self.domain, idx) == 0
+                    or url.find("www." + self.domain, idx) == 0):
                 result = url
 
         return result
