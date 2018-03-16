@@ -25,8 +25,11 @@ class URLHelper:
 class Crawler:
     def __init__(self, local_save, url):
         self.place = local_save
-        self.domain = URLHelper(url).domain
-        self.name_len = len(self.domain)
+        url_obj = URLHelper(url)
+        # prevent the spider from crawling above it's station
+        self.context = url_obj.currentDirectory
+        self.domain = url_obj.domain
+        self.name_len = len(self.context)
         # keep track of the places we've been
         self.places2go = deque()
         self.places2go.append(url)
@@ -69,8 +72,9 @@ class Crawler:
         return result
 
 
-    # requires data to begin with the url
-    # returns None if the url is from a different doamin
+    # returns None if the url is from a different domain
+    # or if the url is in a directory above the one the Crawler was
+    # initialized to.
     def parseLink (self, context, data):
         # this will not return None unless the html is REALLY crappy
         end = re.search("'|\"", data).start(0)
@@ -79,7 +83,7 @@ class Crawler:
         url = self.addSlash(url)
         url = self.removeBookmark(url)
         
-        root = context[:context.find(self.domain) + self.name_len]
+        root = context[:context.find(self.context) + self.name_len]
         reg = re.compile("((f|ht)tps?://)")
         result = None
         
@@ -94,8 +98,8 @@ class Crawler:
                 result = context + url
         else:
             idx = url.find("://") + 3
-            if (url.find(self.domain, idx) == 0
-                    or url.find("www." + self.domain, idx) == 0):
+            if (url.find(self.context, idx) == 0
+                    or url.find("www." + self.context, idx) == 0):
                 result = url
 
         return result
@@ -217,10 +221,34 @@ class Crawler:
 
 
 def printHelp():
-    print("""web.cse crawler - v1.and.only
-
+    print("""web.cse.crawler - v1.and.only
+            This thingy downloads all the files it can find at the supplied URL.
+            It does not download things from other domains from the one specified.
+            It does not download things from a path above the supplied one. All the
+            downloaded files will be saved in a directory named with the domain name
+            of the URL.
+        
             USEAGE:
-                
+                spider URL [PATH]
+
+            URL: The URL to scrape
+            DIR: (Optional) place to save the downloaded files
+
+            For example:
+
+                spider https://www.unicornsareamazing.com/red/green/blue
+            
+            Will try to download everything in blue. It will download these:
+                https://www.unicornsareamazing.com/red/green/blue/birds/hawk.html
+                https://www.unicornsareamazing.com/red/green/blue/penguin.php
+            And save them in a folder named 'unicornsareamazing'. But it will NOT
+            download these:
+                https://www.unicornsareamazing.com/red/green/index.html
+                https://www.unicornsareamazing.com/images/someImageFromThePenguinPage.jpg
+                https://www.unicornsareamazing.com/homePage.html
+                https://www.google.com/search?q=stop+asking+us+questions
+                http://someExternalSite.unicorn/suffLinkedToFromTheUnicornSite.html
+                https://www.microsoft.com/DoYouNeedHelp?look=overthere
             """)
 
 
