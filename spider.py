@@ -222,47 +222,60 @@ class Crawler:
 
 def printHelp():
     print("""web.cse.crawler - v1.and.only
-            This thingy downloads all the files it can find at the supplied URL.
-            It does not download things from other domains from the one specified.
-            It does not download things from a path above the supplied one. All the
-            downloaded files will be saved in a directory named with the domain name
-            of the URL.
-        
-            USEAGE:
-                spider URL [PATH]
-
-            URL: The URL to scrape
-            DIR: (Optional) place to save the downloaded files
-
-            For example:
-
-                spider https://www.unicornsareamazing.com/red/green/blue
+    This thingy downloads all the files it can find at the supplied URL. It does
+    not download things from other domains from the one specified. It does not
+    download things from a path above the supplied one. All the downloaded files
+    will be saved in a directory named with the domain name of the URL.
             
-            Will try to download everything in blue. It will download these:
-                https://www.unicornsareamazing.com/red/green/blue/birds/hawk.html
-                https://www.unicornsareamazing.com/red/green/blue/penguin.php
-            And save them in a folder named 'unicornsareamazing'. But it will NOT
-            download these:
-                https://www.unicornsareamazing.com/red/green/index.html
-                https://www.unicornsareamazing.com/images/someImageFromThePenguinPage.jpg
-                https://www.unicornsareamazing.com/homePage.html
-                https://www.google.com/search?q=stop+asking+us+questions
-                http://someExternalSite.unicorn/suffLinkedToFromTheUnicornSite.html
-                https://www.microsoft.com/DoYouNeedHelp?look=overthere
-            """)
+USEAGE: spider.py URL [PATH] [OPTION]
+
+URL: The URL to scrape
+DIR: (Optional) place to save the downloaded files. Defaults to the current directory
+OPTION:
+    --clean     Start afresh, don't load saved url lists
+
+For example:
+
+    spider.py https://www.unicornsareamazing.com/red/green/blue
+
+Will try to download everything in blue. It will download these:
+
+    https://www.unicornsareamazing.com/red/green/blue/birds/hawk.html
+    https://www.unicornsareamazing.com/red/green/blue/penguin.php
+
+And save them in a folder named 'unicornsareamazing'. But it will NOT download these:
+
+    https://www.unicornsareamazing.com/red/green/someOtherPage.html
+    https://www.unicornsareamazing.com/images/someImageFromThePenguinPage.jpg
+    https://www.google.com/search?q=stop+asking+us+questions
+    http://someExternalSite.com/suffLinkedToFromTheUnicornSite.html
+    https://www.microsoft.com/DoYouNeedHelp?look=overthere""")
 
 
 def main():
-    # this location has ~13,000 files in it. Good place to test.
-    context = "http://localhost/php-manual-en/"
-    place = "./data/"
-    
-    with Crawler(place, context) as spider:
-        if len(sys.argv) < 2 or sys.argv[1] != "clean":
-            spider.loadState()
+    if len(sys.argv) > 1 and len(sys.argv) < 5:
+        context = sys.argv[1]
+        place = "./"
+        clean = False
 
-        spider.recursivePull()
-    
+        if len(sys.argv) == 3:
+            if sys.argv[2] == "--clean":
+                clean = True
+            else:
+                place = sys.argv[2]
+        elif len(sys.argv) == 4:
+            place = sys.argv[2]
+            if sys.argv[3] == "--clean":
+                clean = True
+            else:
+                print("Unrecognized option '" + sys.argv[3] + "'")
+            
+        with Crawler(place, context) as spider:
+            if not clean:
+                spider.loadState()
+            spider.recursivePull()
+    else:
+        printHelp()
 
 
 if __name__ == "__main__":
