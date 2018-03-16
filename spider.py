@@ -25,6 +25,8 @@ class URLHelper:
 class Crawler:
     def __init__(self, local_save, url):
         self.place = local_save
+        if local_save[-1] != "/" or local_save[-1] != "\\":
+            self.place = self.place + "/"
         url_obj = URLHelper(url)
         # prevent the spider from crawling above it's station
         self.context = url_obj.currentDirectory
@@ -153,6 +155,8 @@ class Crawler:
         idx = 3
         while idx < len(raw_links):
             parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
+            if parsed == "</span><span style=/":
+                print("AAA")
             if (parsed is not None and parsed not in self.places2go
                     and parsed not in self.visited):
                 self.places2go.append(parsed)
@@ -211,13 +215,13 @@ class Crawler:
             # self.get may update the length of self.places2go
             print("\nDownloading: " + url)
             self.get(url)
-            if self.crawlCount % 3:
+            if self.crawlCount % 12:
                 self.saveState()
             print("list size: " + str(len(self.places2go)))
             print("Pages crawled this session: " + str(self.crawlCount))
 
-            # sleep for longer (7-15min) when running 4 real.
-            self.coolSleep(1)
+            # be nice to webservers, sleep for 600s (12min)
+            # self.coolSleep(60 * 12)
 
 
 def printHelp():
