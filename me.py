@@ -215,7 +215,7 @@ class Crawler:
 def main():
     # this location has ~13,000 files in it. Good place to test.
     context = "http://localhost/php-manual-en/"
-    place = "./"
+    place = "./data/"
     
     with Crawler(place, context) as spider:
         if len(sys.argv) < 2 or sys.argv[1] != "clean":
