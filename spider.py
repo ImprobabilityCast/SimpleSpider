@@ -154,6 +154,7 @@ class Crawler:
         self.save(file_path, response.content)
         
         # Note: There will be no href in the first split
+        # TODO: binary files are REALLY slow on this line.
         raw_links = self.pattern.split(response.text)
 
         # Skip over every 3 elements 'cause the regex subpattern matches are kept.
