@@ -7,6 +7,7 @@ import requests
 import sys
 import time
 from collections import deque
+import itertools
 
 class URLHelper:
     def __init__(self, url):
@@ -25,19 +26,22 @@ class URLHelper:
 class Crawler:
     def __init__(self, local_save, url):
         self.place = local_save
-        if local_save[-1] != "/" or local_save[-1] != "\\":
+        if local_save[-1] != "/" and local_save[-1] != "\\":
             self.place = self.place + "/"
         url_obj = URLHelper(url)
         # prevent the spider from crawling above it's station
         self.context = url_obj.currentDirectory
         self.domain = url_obj.domain
-        self.name_len = len(self.context)
+        self.listFileName = self.domain + "_list.txt"
+        self.visitedFileName = self.domain + "_visited.txt"
         # keep track of the places we've been
         self.places2go = deque()
         self.places2go.append(url)
-        self.visited = set()
-        self.crawlCount = 0
+        self.visited = []
+        self.newURLCount = 0
+        self.usedURLCount = 0
         self.pattern = re.compile("(href|src)=\\\\?(\"|')")
+        self.invalidPathChars = re.compile("[<>:\"\\|\\?\\*]")
 
 
     def __enter__(self):
@@ -45,7 +49,7 @@ class Crawler:
 
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.saveState()
+        self.saveState(self.listFileName, self.visitedFileName)
 
 
     def recursiveMkdir(self, path):
@@ -85,7 +89,7 @@ class Crawler:
         url = self.addSlash(url)
         url = self.removeBookmark(url)
         
-        root = context[:context.find(self.context) + self.name_len]
+        root = context[:context.find(self.context) + len(self.context)]
         reg = re.compile("((f|ht)tps?://)")
         result = None
         
@@ -108,14 +112,16 @@ class Crawler:
 
     
     def save(self, path, data):
-        if path[-1] == '/':
-            self.recursiveMkdir(path)
+        # replace invalid windows path characters
+        filteredPath = self.invalidPathChars.sub("_", path)
+        if filteredPath[-1] == '/':
+            self.recursiveMkdir(filteredPath)
         else:
-            last_slash = path.rfind('/')
-            directory = path[:last_slash]
+            last_slash = filteredPath.rfind('/')
+            directory = filteredPath[:last_slash]
             self.recursiveMkdir(directory)
         
-        file = open(path, "wb")
+        file = open(filteredPath, "wb")
         file.write(data)
         file.close()
     
@@ -125,17 +131,16 @@ class Crawler:
     # not already in there.
     # 
     # @updates self.places2go
-    # @updates self.visited
-    # @updates self.crawlCount
     #
     def get(self, starting_url):
-        self.visited.add(starting_url)
-        self.crawlCount += 1
         response = requests.get(starting_url)
 
         if not response.ok:
-            print(starting_url + " - Error: " + str(response.status_code)
-                + " - " + response.reason)
+            msg = (starting_url + " - Error: " + str(response.status_code)
+                    + " - " + response.reason)
+            print(msg)
+            with open("error.log", "a") as f:
+                f.write(msg + "\n")
             return
 
         url_obj = URLHelper(starting_url)
@@ -155,44 +160,79 @@ class Crawler:
         idx = 3
         while idx < len(raw_links):
             parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
-            if parsed == "</span><span style=/":
-                print("AAA")
             if (parsed is not None and parsed not in self.places2go
                     and parsed not in self.visited):
                 self.places2go.append(parsed)
+                self.newURLCount += 1
                 print("adding url: " + parsed)
             idx += 3
 
 
     def loadLines(self, file_name):
         result = []
-        if os.path.exists(file_name):
-            with open(file_name, "r") as f:
-                result = f.read().splitlines()
-                print("loaded '" + file_name + "'")
-        else:
-            print("'" + file_name + "' does not exist")
+        with open(file_name, "r") as f:
+            result = f.read().splitlines()
+            print("loaded '" + file_name + "'")
         return result
 
+    # replaces self.places2go
+    # replaces self.visited
+    def loadState(self, list_file_name, visited_file_name):
+        loadedList = frozenset(self.loadLines(list_file_name))
+        loadedVisted = self.loadLines(visited_file_name)
+        self.places2go = deque()
+        self.places2go.append(loadedList.difference(loadedVisted))
+        self.visited = loadedVisted
 
-    def loadState(self):
-        list_file_name = self.domain + "_list.txt"
-        visited_file_name = self.domain + "_visited.txt"
-        saved_places = self.loadLines(list_file_name)
-        self.places2go.extend(saved_places)
-        saved_visited = self.loadLines(visited_file_name)
-        self.visited = self.visited.union(saved_visited)
+
+    # removes the specified number of lines from the END of the file.
+    # If the number of lines in the file is less than the number to
+    # be removed, then the whole file is trucated.
+    # @pram fd
+    #           a file descriptor
+    # requires lines > 0 and fd is open
+    # def removeLines(self, fd, lines):
+    #     fd.seek(0, os.SEEK_END)
+    #     pos = fd.tell()
+
+    #     count = 0
+    #     while pos > 0 and count < lines:
+    #         # move the position in the file backwards
+    #         pos -= 1
+    #         fd.seek(pos, 0)
+
+    #         if fd.read(1) == "\n":
+    #             count += 1
+        
+    #     if count == lines:
+    #         pos -= 1
+    #         fd.seek(pos, 0)
+        
+    #     fd.truncate()
 
 
-    def saveState(self):
-        with open(self.domain + "_list.txt", "w") as list_file:
-            for place in self.places2go:
-                list_file.write(place)
-                list_file.write("\n")
-        with open(self.domain + "_visited.txt", "w") as visited_file:
-            for place in self.visited:
-                visited_file.write(place)
-                visited_file.write("\n")
+    # clears self.usedURLCount
+    # clears self.newURLCount
+    def saveState(self, list_file_name, visited_file_name):
+        with open(list_file_name, "a") as list_file:
+            diff = len(self.places2go) - self.newURLCount
+            if diff < 0:
+                newURLs = self.visited[diff:]
+                newURLs.extend(self.places2go)
+            else:
+                newURLs = list(itertools.islice(self.places2go, diff, None))
+
+            for url in newURLs:
+                list_file.write(url + "\n")
+    
+        with open(visited_file_name, "a") as visited_file:
+            newVisits = self.visited[len(self.visited) - self.usedURLCount:]
+            for url in newVisits:
+                visited_file.write(url + "\n")
+        
+        self.usedURLCount = 0
+        self.newURLCount = 0
+
 
     # @param nap_length
     #                   the time to sleep in seconds
@@ -212,13 +252,15 @@ class Crawler:
     def recursivePull(self):
         while 0 != len(self.places2go):
             url = self.places2go.popleft()
+            self.visited.append(url)
+            self.usedURLCount += 1
             # self.get may update the length of self.places2go
             print("\nDownloading: " + url)
             self.get(url)
-            if self.crawlCount % 12:
-                self.saveState()
+            if self.usedURLCount == 12:
+                print("Saving current state...")
+                self.saveState(self.listFileName, self.visitedFileName)
             print("list size: " + str(len(self.places2go)))
-            print("Pages crawled this session: " + str(self.crawlCount))
 
             # be nice to webservers, sleep for 600s (12min)
             # self.coolSleep(60 * 12)
@@ -273,10 +315,15 @@ def main():
                 clean = True
             else:
                 print("Unrecognized option '" + sys.argv[3] + "'")
-            
+
         with Crawler(place, context) as spider:
             if not clean:
-                spider.loadState()
+                if (os.path.exists(spider.listFileName) and
+                        os.path.exists(spider.visitedFileName)):
+                    spider.loadState(spider.listFileName, spider.visitedFileName)
+                else:
+                    print("Could not load one or more of the URL lists.")
+            
             spider.recursivePull()
     else:
         printHelp()
