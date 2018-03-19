@@ -9,8 +9,11 @@ import itertools
 # 3rd party lib
 import requests
 
-# Dear self, This is terribly organized. Best, me
 
+# TODO: fix invalid URLs getting thru, good luck with this one, you'll need it.
+
+
+# A not so helpful helper class
 class URLHelper:
     def __init__(self, url):
         index = url.find("://") + 3
@@ -23,6 +26,7 @@ class URLHelper:
         self.fullPath = url[:last_slash]
         self.rawURL = url
         self.currentDirectory = url[index:last_slash]
+
 
 # Helper methods
 
@@ -166,7 +170,7 @@ class Crawler:
         
         self.save(file_path, response.content)
         
-        # Don't need to look for liks if the file is binary
+        # Don't need to look for links if the file is binary
         if "text" in response.headers["content-type"]:
             raw_links = self.pattern.split(response.text)
         else:
@@ -196,6 +200,7 @@ class Crawler:
         self.visited = loadedVisted
         self.newURLCount = 0
         self.usedURLCount = 0
+
 
     # clears self.usedURLCount
     # clears self.newURLCount
