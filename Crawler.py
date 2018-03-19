@@ -1,5 +1,3 @@
-#import xml.etree.ElementTree as ElementTree
-#from xml.etree.ElementTree import XMLParser
 import os
 import re
 import time
@@ -107,7 +105,7 @@ class Crawler:
         url = removeBookmark(url)
         
         root = context[:context.find(self.context) + len(self.context)]
-        reg = re.compile("((f|ht)tps?://)")
+        reg = re.compile("((f|ht)tps?://)") # Why bother compiling this a zillion times?
         result = None
         
         if reg.match(url) == None:
