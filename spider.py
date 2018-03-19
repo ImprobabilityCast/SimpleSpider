@@ -9,6 +9,8 @@ import time
 from collections import deque
 import itertools
 
+# Dear self, This is terribly organized. Best, me
+
 class URLHelper:
     def __init__(self, url):
         index = url.find("://") + 3
@@ -190,33 +192,6 @@ class Crawler:
         self.visited = loadedVisted
         self.newURLCount = 0
         self.usedURLCount = 0
-
-
-    # removes the specified number of lines from the END of the file.
-    # If the number of lines in the file is less than the number to
-    # be removed, then the whole file is trucated.
-    # @pram fd
-    #           a file descriptor
-    # requires lines > 0 and fd is open
-    # def removeLines(self, fd, lines):
-    #     fd.seek(0, os.SEEK_END)
-    #     pos = fd.tell()
-
-    #     count = 0
-    #     while pos > 0 and count < lines:
-    #         # move the position in the file backwards
-    #         pos -= 1
-    #         fd.seek(pos, 0)
-
-    #         if fd.read(1) == "\n":
-    #             count += 1
-        
-    #     if count == lines:
-    #         pos -= 1
-    #         fd.seek(pos, 0)
-        
-    #     fd.truncate()
-
 
     # clears self.usedURLCount
     # clears self.newURLCount
