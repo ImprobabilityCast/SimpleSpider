@@ -8,7 +8,7 @@ import itertools
 import requests
 
 
-# TODO: fix invalid URLs getting thru, good luck with this one, you'll need it.
+# TODO: fix the prolific propigation of invalid URLs. Good luck with this one, you'll need it.
 
 
 # A not so helpful helper class
@@ -171,19 +171,17 @@ class Crawler:
         # Don't need to look for links if the file is binary
         if "text" in response.headers["content-type"]:
             raw_links = self.pattern.split(response.text)
-        else:
-            raw_links = []
 
-        # Skip over every 3 elements 'cause the regex subpattern matches are kept.
-        idx = 3
-        while idx < len(raw_links):
-            parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
-            if (parsed is not None and parsed not in self.places2go
-                    and parsed not in self.visited):
-                self.places2go.append(parsed)
-                self.newURLCount += 1
-                print("adding url: " + parsed)
-            idx += 3
+            # Skip over every 3 elements 'cause the regex subpattern matches are kept.
+            idx = 3
+            while idx < len(raw_links):
+                parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
+                if (parsed is not None and parsed not in self.places2go
+                        and parsed not in self.visited):
+                    self.places2go.append(parsed)
+                    self.newURLCount += 1
+                    print("adding url: " + parsed)
+                idx += 3
 
 
     # replaces self.places2go
