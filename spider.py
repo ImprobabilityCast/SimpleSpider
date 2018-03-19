@@ -38,7 +38,7 @@ class Crawler:
         self.places2go = deque()
         self.places2go.append(url)
         self.visited = []
-        self.newURLCount = 0
+        self.newURLCount = 1
         self.usedURLCount = 0
         self.pattern = re.compile("(href|src)=\\\\?(\"|')")
         self.invalidPathChars = re.compile("[<>:\"\\|\\?\\*]")
@@ -153,9 +153,11 @@ class Crawler:
         
         self.save(file_path, response.content)
         
-        # Note: There will be no href in the first split
-        # TODO: binary files are REALLY slow on this line.
-        raw_links = self.pattern.split(response.text)
+        # Don't need to look for liks if the file is binary
+        if "text" in response.headers["content-type"]:
+            raw_links = self.pattern.split(response.text)
+        else:
+            raw_links = []
 
         # Skip over every 3 elements 'cause the regex subpattern matches are kept.
         idx = 3
@@ -178,12 +180,16 @@ class Crawler:
 
     # replaces self.places2go
     # replaces self.visited
+    # clears self.newURLCount
+    # clears self.usedURLCount
     def loadState(self, list_file_name, visited_file_name):
         loadedList = frozenset(self.loadLines(list_file_name))
         loadedVisted = self.loadLines(visited_file_name)
         self.places2go = deque()
         self.places2go.append(loadedList.difference(loadedVisted))
         self.visited = loadedVisted
+        self.newURLCount = 0
+        self.usedURLCount = 0
 
 
     # removes the specified number of lines from the END of the file.
