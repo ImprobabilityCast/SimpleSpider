@@ -1,13 +1,13 @@
 #import xml.etree.ElementTree as ElementTree
 #from xml.etree.ElementTree import XMLParser
-#import http.client
 import os
 import re
-import requests
-import sys
 import time
 from collections import deque
 import itertools
+
+# 3rd party lib
+import requests
 
 # Dear self, This is terribly organized. Best, me
 
@@ -24,6 +24,42 @@ class URLHelper:
         self.rawURL = url
         self.currentDirectory = url[index:last_slash]
 
+# Helper methods
+
+def recursiveMkdir(path):
+    if not os.path.exists(path):
+        pair = os.path.split(path)
+        recursiveMkdir(pair[0])
+        os.mkdir(path)
+
+
+def loadLines(file_name):
+    result = []
+    with open(file_name, "r") as f:
+        result = f.read().splitlines()
+        print("loaded '" + file_name + "'")
+    return result
+
+
+def removeBookmark(url):
+    index = url.rfind('#')
+    if index != -1:
+        result = url[:index]
+    else:
+        result = url
+    return result
+
+
+def addSlash(url):
+    index = url.rfind("/")
+    if index != -1 and index != len(url) - 1 and "." not in url[index:]:
+        result = url + "/"
+    else:
+        result = url
+    return result
+
+
+# The crawling class
 
 class Crawler:
     def __init__(self, local_save, url):
@@ -42,6 +78,7 @@ class Crawler:
         self.visited = []
         self.newURLCount = 1
         self.usedURLCount = 0
+        # precompile the regexes to use later
         self.pattern = re.compile("(href|src)=\\\\?(\"|')")
         self.invalidPathChars = re.compile("[<>:\"\\|\\?\\*]")
 
@@ -54,32 +91,6 @@ class Crawler:
         self.saveState(self.listFileName, self.visitedFileName)
 
 
-    def recursiveMkdir(self, path):
-        if not os.path.exists(path):
-            pair = os.path.split(path)
-            print(pair[0])
-            self.recursiveMkdir(pair[0])
-            os.mkdir(path)
-
-
-    def removeBookmark(self, url):
-        index = url.rfind('#')
-        if index != -1:
-            result = url[:index]
-        else:
-            result = url
-        return result
-
-
-    def addSlash(self, url):
-        index = url.rfind("/")
-        if index != -1 and index != len(url) - 1 and "." not in url[index:]:
-            result = url + "/"
-        else:
-            result = url
-        return result
-
-
     # returns None if the url is from a different domain
     # or if the url is in a directory above the one the Crawler was
     # initialized to.
@@ -88,8 +99,8 @@ class Crawler:
         end = re.search("'|\"", data).start(0)
         url = data[:end]
 
-        url = self.addSlash(url)
-        url = self.removeBookmark(url)
+        url = addSlash(url)
+        url = removeBookmark(url)
         
         root = context[:context.find(self.context) + len(self.context)]
         reg = re.compile("((f|ht)tps?://)")
@@ -117,15 +128,15 @@ class Crawler:
         # replace invalid windows path characters
         filteredPath = self.invalidPathChars.sub("_", path)
         if filteredPath[-1] == '/':
-            self.recursiveMkdir(filteredPath)
+            recursiveMkdir(filteredPath)
         else:
             last_slash = filteredPath.rfind('/')
             directory = filteredPath[:last_slash]
-            self.recursiveMkdir(directory)
+            recursiveMkdir(directory)
         
-        file = open(filteredPath, "wb")
-        file.write(data)
-        file.close()
+        out = open(filteredPath, "wb")
+        out.write(data)
+        out.close()
     
 
     # Downloads the file that {@code starting_url} points to
@@ -148,6 +159,7 @@ class Crawler:
         url_obj = URLHelper(starting_url)
         file_path = self.place + url_obj.currentDirectory
 
+        # assume the root file name is 'index.html'
         if starting_url[-1] == '/':
             file_path += "index.html"
         else:
@@ -173,20 +185,13 @@ class Crawler:
             idx += 3
 
 
-    def loadLines(self, file_name):
-        result = []
-        with open(file_name, "r") as f:
-            result = f.read().splitlines()
-            print("loaded '" + file_name + "'")
-        return result
-
     # replaces self.places2go
     # replaces self.visited
     # clears self.newURLCount
     # clears self.usedURLCount
     def loadState(self, list_file_name, visited_file_name):
-        loadedList = frozenset(self.loadLines(list_file_name))
-        loadedVisted = self.loadLines(visited_file_name)
+        loadedList = frozenset(loadLines(list_file_name))
+        loadedVisted = loadLines(visited_file_name)
         self.places2go = deque()
         self.places2go.append(loadedList.difference(loadedVisted))
         self.visited = loadedVisted
@@ -248,68 +253,3 @@ class Crawler:
             # self.coolSleep(60 * 12)
 
 
-def printHelp():
-    print("""web.cse.crawler - v1.and.only
-    This thingy downloads all the files it can find at the supplied URL. It does
-    not download things from other domains from the one specified. It does not
-    download things from a path above the supplied one. All the downloaded files
-    will be saved in a directory named with the domain name of the URL.
-            
-USEAGE: spider.py URL [PATH] [OPTION]
-
-URL: The URL to scrape
-DIR: (Optional) place to save the downloaded files. Defaults to the current directory
-OPTION:
-    --clean     Start afresh, don't load saved url lists
-
-For example:
-
-    spider.py https://www.unicornsareamazing.com/red/green/blue
-
-Will try to download everything in blue. It will download these:
-
-    https://www.unicornsareamazing.com/red/green/blue/birds/hawk.html
-    https://www.unicornsareamazing.com/red/green/blue/penguin.php
-
-And save them in a folder named 'unicornsareamazing'. But it will NOT download these:
-
-    https://www.unicornsareamazing.com/red/green/someOtherPage.html
-    https://www.unicornsareamazing.com/images/someImageFromThePenguinPage.jpg
-    https://www.google.com/search?q=stop+asking+us+questions
-    http://someExternalSite.com/suffLinkedToFromTheUnicornSite.html
-    https://www.microsoft.com/DoYouNeedHelp?look=overthere""")
-
-
-def main():
-    if len(sys.argv) > 1 and len(sys.argv) < 5:
-        context = sys.argv[1]
-        place = "./"
-        clean = False
-
-        if len(sys.argv) == 3:
-            if sys.argv[2] == "--clean":
-                clean = True
-            else:
-                place = sys.argv[2]
-        elif len(sys.argv) == 4:
-            place = sys.argv[2]
-            if sys.argv[3] == "--clean":
-                clean = True
-            else:
-                print("Unrecognized option '" + sys.argv[3] + "'")
-
-        with Crawler(place, context) as spider:
-            if not clean:
-                if (os.path.exists(spider.listFileName) and
-                        os.path.exists(spider.visitedFileName)):
-                    spider.loadState(spider.listFileName, spider.visitedFileName)
-                else:
-                    print("Could not load one or more of the URL lists.")
-            
-            spider.recursivePull()
-    else:
-        printHelp()
-
-
-if __name__ == "__main__":
-    main()
