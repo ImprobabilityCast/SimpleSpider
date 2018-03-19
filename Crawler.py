@@ -134,9 +134,8 @@ class Crawler:
             directory = filteredPath[:last_slash]
             recursiveMkdir(directory)
         
-        out = open(filteredPath, "wb")
-        out.write(data)
-        out.close()
+        with open(filteredPath, "wb") as out:
+            out.write(data)
     
 
     # Downloads the file that {@code starting_url} points to
