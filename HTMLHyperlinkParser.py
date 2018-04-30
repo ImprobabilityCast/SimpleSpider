@@ -6,11 +6,6 @@ from collections import deque
 # as plaintext.
 # look out for self closing tags
 
-# Testing - Try these pages:
-#   http://localhost/php-manual-en/function.filter-input.html
-#
-# Also, compare number of matches with regex split
-
 # Poor grammar
 #
 # DOCUMENT: { < ? xml PLAIN_TEXT ? > } { <! DOCTYPE PLAIN_TEXT > } HTML

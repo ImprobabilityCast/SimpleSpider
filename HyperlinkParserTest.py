@@ -19,7 +19,13 @@ def printNodes(node, indent):
 
 
 def main():
-    response = requests.get("http://localhost/")
+    # tests:
+    #   http://localhost/php-manual-en/function.filter-input.html
+    #   http:/localhost/
+    #
+    # Also, compare number of matches with regex split
+
+    response = requests.get("http://localhost/php-manual-en/function.filter-input.html")
     
     parser = HTMLHyperlinkParser(response.text)
     printNodes(parser.doc, 0)
