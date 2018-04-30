@@ -139,6 +139,8 @@ class Crawler:
         with open(filteredPath, "wb") as out:
             out.write(data)
     
+    # TODO : fn that guesses that a URL conatins to much text that is likely HTML,
+    #           OR parse the HTML better
 
     # Downloads the file that {@code starting_url} points to
     # and adds all valid urls to {@code self.places2go} that are
@@ -150,8 +152,8 @@ class Crawler:
         response = requests.get(starting_url)
 
         if not response.ok:
-            msg = (starting_url + " - Error: " + str(response.status_code)
-                    + " - " + response.reason)
+            msg = ("Error: " + str(response.status_code)
+                    + " - " + response.reason + " - " + starting_url)
             print(msg)
             with open("error.log", "a") as f:
                 f.write(msg + "\n")
@@ -192,7 +194,7 @@ class Crawler:
         loadedList = frozenset(loadLines(list_file_name))
         loadedVisted = loadLines(visited_file_name)
         self.places2go = deque()
-        self.places2go.append(loadedList.difference(loadedVisted))
+        self.places2go.extend(loadedList.difference(loadedVisted))
         self.visited = loadedVisted
         self.newURLCount = 0
         self.usedURLCount = 0
