@@ -107,30 +107,26 @@ class HTMLHyperlinkParser:
 
         # if not self-closing tag
         if len(attributes) < 2 or attributes[-2] != '/':
-            tokens = self.extractThruToStr(chars, ['<', '/', node.name, '>'])
             # ignore script nodes
             if node.name == 'script' or node.name == 'style':
+                self.extractThruToStr(chars, ['<', '/', node.name, '>'])
                 return node
             
-            while tokens.pop() != '<':
-                pass
-            
-            while True:
+            while len(chars) > 0:
                 # skip text nodes
-                self.extractThruToStr(tokens, '<')
+                self.extractThruToStr(chars, '<')
 
-                # skip comments
-                if len(tokens) > 0:
-                    tok = tokens.popleft()
-                    if tok == '!':
-                        self.extractThruToStr(tokens, '-->')
-                    else:
-                        tokens.appendleft(tok)
-                
-                if len(tokens) > 0:
-                    node.appendChild(self.parseHTML(tokens))
-                else:
+                if chars[0] == '!':
+                    # skip comments
+                    self.extractThruToStr(chars, '-->')
+                elif chars[0] == '/':
+                    chars.popleft()
+                    chars.popleft()
+                    chars.popleft()
                     break
+                else:
+                    node.appendChild(self.parseHTML(chars))
+
         return node
 
 

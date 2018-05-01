@@ -2,3 +2,5 @@
 *_list.txt
 *_visited.txt
 error.log
+# ignore python cache
+__pycache__
