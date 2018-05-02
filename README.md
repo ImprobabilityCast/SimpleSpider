@@ -1,2 +1,2 @@
-# web.cse.crawler
-A spider designed specifically to be good and to copy a certain website that is frequently down.
+# SimpleSpider
+A web crawler written to gain experience with python and parsing
