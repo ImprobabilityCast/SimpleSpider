@@ -1,21 +1,18 @@
+from collections import deque
+from typing import Iterable
 
 class HTMLNode(object):
-    def __init__(self, nodeName):
+    def __init__(self, nodeName: str):
         self.name = nodeName
-        self.childList = []
+        self.childList = deque()
         self.attributes = dict()
-        self.parent = None
 
-    def appendChild(self, node):
-        self.childList.append(node)
-        node.parent = self
-    
-    def getElementsByName(self, name):
+    def getElementsByTagNames(self, names: Iterable) -> set:
         result = set()
-        if self.name == name:
+        if self.name in names:
             result.add(self)
         for n in self.childList:
-            result.update(n.getElementsByName(name))
+            result.update(n.getElementsByTagNames(names))
         return result
     
     def __repr__(self):

@@ -1,70 +1,22 @@
+import itertools    
 import os
 import re
 import time
+
 from collections import deque
-import itertools
+from typing import ByteString
 
 # 3rd party lib
 import requests
 
-
-# TODO: fix the prolific propigation of invalid URLs. Good luck with this one, you'll need it.
-
-
-# A not so helpful helper class
-class URLHelper:
-    def __init__(self, url):
-        index = url.find("://") + 3
-        self.protocol = url[:index]
-        first_slash = url[index:].find("/") + index
-        self.domain = url[index:first_slash]
-        last_slash = url[first_slash:].rfind("/") + first_slash + 1
-        self.fileName = url[last_slash:]
-        self.path = url[index:]
-        self.fullPath = url[:last_slash]
-        self.rawURL = url
-        self.currentDirectory = url[index:last_slash]
-
-
-# Helper methods
-
-def recursiveMkdir(path):
-    if not os.path.exists(path):
-        pair = os.path.split(path)
-        recursiveMkdir(pair[0])
-        os.mkdir(path)
-
-
-def loadLines(file_name):
-    result = []
-    with open(file_name, "r") as f:
-        result = f.read().splitlines()
-        print("loaded '" + file_name + "'")
-    return result
-
-
-def removeBookmark(url):
-    index = url.rfind('#')
-    if index != -1:
-        result = url[:index]
-    else:
-        result = url
-    return result
-
-
-def addSlash(url):
-    index = url.rfind("/")
-    if index != -1 and index != len(url) - 1 and "." not in url[index:]:
-        result = url + "/"
-    else:
-        result = url
-    return result
+from NodeExtractor import extractNamedNodes
+from URLHelper import URLHelper
 
 
 # The crawling class
 
 class Crawler:
-    def __init__(self, local_save, url):
+    def __init__(self, local_save: str, url: str):
         self.place = local_save
         if local_save[-1] != "/" and local_save[-1] != "\\":
             self.place = self.place + "/"
@@ -81,7 +33,7 @@ class Crawler:
         self.newURLCount = 1
         self.usedURLCount = 0
         # precompile the regexes to use later
-        self.pattern = re.compile("(href|src)=\\\\?(\"|')")
+        self.protocolPattern = re.compile("((f|ht)tps?://)")
         self.invalidPathChars = re.compile("[<>:\"\\|\\?\\*]")
 
 
@@ -96,19 +48,13 @@ class Crawler:
     # returns None if the url is from a different domain
     # or if the url is in a directory above the one the Crawler was
     # initialized to.
-    def parseLink (self, context, data):
-        # this will not return None unless the html is REALLY crappy
-        end = re.search("'|\"", data).start(0)
-        url = data[:end]
-
-        url = addSlash(url)
-        url = removeBookmark(url)
-        
+    def parseLink(self, context: str, link: str) -> str:
+        url = URLHelper.addSlash(link)
+        url = URLHelper.removeBookmark(url)
         root = context[:context.find(self.context) + len(self.context)]
-        reg = re.compile("((f|ht)tps?://)") # Why bother compiling this a zillion times?
         result = None
         
-        if reg.match(url) == None:
+        if self.protocolPattern.match(url) == None:
             url_len = len(url)
             if url_len > 1 and url[0:2] == "./":
                 result = context + url[2:]
@@ -126,21 +72,18 @@ class Crawler:
         return result
 
     
-    def save(self, path, data):
+    def save(self, path: str, data: ByteString):
         # replace invalid windows path characters
         filteredPath = self.invalidPathChars.sub("_", path)
         if filteredPath[-1] == '/':
-            recursiveMkdir(filteredPath)
+            Crawler._recursiveMkdir(filteredPath)
         else:
             last_slash = filteredPath.rfind('/')
             directory = filteredPath[:last_slash]
-            recursiveMkdir(directory)
+            Crawler._recursiveMkdir(directory)
         
         with open(filteredPath, "wb") as out:
             out.write(data)
-    
-    # TODO : fn that guesses that a URL conatins to much text that is likely HTML,
-    #           OR parse the HTML better
 
     # Downloads the file that {@code starting_url} points to
     # and adds all valid urls to {@code self.places2go} that are
@@ -148,7 +91,7 @@ class Crawler:
     # 
     # @updates self.places2go
     #
-    def get(self, starting_url):
+    def get(self, starting_url: str):
         response = requests.get(starting_url)
 
         if not response.ok:
@@ -170,29 +113,33 @@ class Crawler:
         
         self.save(file_path, response.content)
         
-        # Don't need to look for links if the file is binary
-        if "text" in response.headers["content-type"]:
-            raw_links = self.pattern.split(response.text)
-
-            # Skip over every 3 elements 'cause the regex subpattern matches are kept.
-            idx = 3
-            while idx < len(raw_links):
-                parsed = self.parseLink(url_obj.fullPath, raw_links[idx])
+        # Don't need to look for links if the file is binary,
+        # and not going to bother looking through non-html
+        # responses for possible URLs
+        if "text/html" == response.headers["content-type"]:
+            raw_links = set()
+            for n in extractNamedNodes(response.text, ["a", "img", "script", "link"]):
+                if 'href' in n.attributes:
+                    raw_links.add(n.attributes['href'])
+                elif 'src' in n.attributes:
+                    raw_links.add(n.attributes['src'])
+            
+            while 0 < len(raw_links):
+                parsed = self.parseLink(url_obj.fullPath, raw_links.pop())
                 if (parsed is not None and parsed not in self.places2go
                         and parsed not in self.visited):
                     self.places2go.append(parsed)
                     self.newURLCount += 1
                     print("adding url: " + parsed)
-                idx += 3
-
+    
 
     # replaces self.places2go
     # replaces self.visited
     # clears self.newURLCount
     # clears self.usedURLCount
-    def loadState(self, list_file_name, visited_file_name):
-        loadedList = frozenset(loadLines(list_file_name))
-        loadedVisted = loadLines(visited_file_name)
+    def loadState(self, list_file_name: str, visited_file_name: str):
+        loadedList = frozenset(Crawler._loadLines(list_file_name))
+        loadedVisted = Crawler._loadLines(visited_file_name)
         self.places2go = deque()
         self.places2go.extend(loadedList.difference(loadedVisted))
         self.visited = loadedVisted
@@ -202,7 +149,7 @@ class Crawler:
 
     # clears self.usedURLCount
     # clears self.newURLCount
-    def saveState(self, list_file_name, visited_file_name):
+    def saveState(self, list_file_name: str, visited_file_name: str):
         with open(list_file_name, "a") as list_file:
             diff = len(self.places2go) - self.newURLCount
             if diff < 0:
@@ -222,22 +169,6 @@ class Crawler:
         self.usedURLCount = 0
         self.newURLCount = 0
 
-
-    # @param nap_length
-    #                   the time to sleep in seconds
-    def coolSleep(self, nap_length):
-        while nap_length > 0:
-            minutes = str(nap_length // 60)
-            if len(minutes) == 1:
-                minutes = "0" + minutes
-            seconds = str(nap_length % 60)
-            if len(seconds) == 1:
-                seconds = "0" + seconds
-            print("sleeping...    " + minutes + ":" + seconds, end="\r")
-            time.sleep(1)
-            nap_length -= 1
-
-
     def recursivePull(self):
         while 0 != len(self.places2go):
             url = self.places2go.popleft()
@@ -252,6 +183,34 @@ class Crawler:
             print("list size: " + str(len(self.places2go)))
 
             # be nice to webservers, sleep for 600s (12min)
-            # self.coolSleep(60 * 12)
+            # _coolSleep(60 * 12)
 
+    # @param nap_length
+    #                   the time to sleep in seconds
+    @staticmethod
+    def _coolSleep(nap_length: int):
+        while nap_length > 0:
+            minutes = str(nap_length // 60)
+            if len(minutes) == 1:
+                minutes = "0" + minutes
+            seconds = str(nap_length % 60)
+            if len(seconds) == 1:
+                seconds = "0" + seconds
+            print("sleeping...    " + minutes + ":" + seconds, end="\r")
+            time.sleep(1)
+            nap_length -= 1
 
+    @staticmethod
+    def _recursiveMkdir(path):
+        if not os.path.exists(path):
+            pair = os.path.split(path)
+            Crawler._recursiveMkdir(pair[0])
+            os.mkdir(path)
+
+    @staticmethod
+    def _loadLines(file_name: str) -> list:
+        result = []
+        with open(file_name, "r") as f:
+            result = f.read().splitlines()
+            print("loaded '" + file_name + "'")
+        return result

@@ -2,7 +2,7 @@
 # 3rd party lib
 import requests
 
-from SimpleHTML import SimpleHTML
+from simpleHTML import parse
 
 def printTabs(num):
     s = ""
@@ -19,7 +19,7 @@ def printNodes(node, indent):
     print(printTabs(indent) + '</' + node.name + '>')
 
 def printLinks(node):
-    nodes = node.getElementsByName("a")
+    nodes = node.getElementsByTagNames("a")
     toPrint = []
     for n in nodes:
        # if 'href' in n.attributes and n.attributes['href'] not in toPrint:
@@ -35,15 +35,18 @@ def main():
     #   "<html><body><div><div></div></div></body></html>"
     #   "<html><body><div content pigs='null' turkey='' knife='egg\\'bacon'><p></p></div></body></html>"
     #
-    # Also, compare number of matches with regex split
+    # these make it parse slow:
+    #   http://localhost/php-manual-en/indexes.examples.html
+    #   http://localhost/php-manual-en/indexes.functions.html
+    #
 
-    response2 = requests.get("http://localhost/php-manual-en/function.filter-input.html")
+    response2 = requests.get("http://localhost/php-manual-en/indexes.examples.html")
     
     print("Parsing...")
     
-    parser = SimpleHTML(response2.text)
-    printNodes(parser.doc, 0)
-    printLinks(parser.doc)
+    doc = parse(response2.text)
+    printNodes(doc, 0)
+    printLinks(doc)
 
 if __name__ == "__main__":
     main()
