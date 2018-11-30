@@ -10,7 +10,7 @@ def printHelp():
     download things from a path above the supplied one. All the downloaded files
     will be saved in a directory named with the domain name of the URL.
             
-USEAGE: main.py URL [PATH] [OPTION]
+USEAGE: main.py URL [DIR] [OPTION]
 
 URL: The URL to scrape
 DIR: (Optional) place to save the downloaded files. Defaults to the current directory
