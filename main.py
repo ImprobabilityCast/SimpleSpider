@@ -9,7 +9,7 @@ def printHelp():
     not download things from other domains from the one specified. It does not
     download things from a path above the supplied one. All the downloaded files
     will be saved in a directory named with the domain name of the URL.
-            
+
 USEAGE: main.py URL [DIR] [OPTION]
 
 URL: The URL to scrape

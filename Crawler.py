@@ -71,7 +71,7 @@ class Crawler:
 
         return result
 
-    
+
     def save(self, path: str, data: ByteString):
         # replace invalid windows path characters
         filteredPath = self.invalidPathChars.sub("_", path)
@@ -85,6 +85,7 @@ class Crawler:
         with open(filteredPath, "wb") as out:
             out.write(data)
 
+
     # Downloads the file that {@code starting_url} points to
     # and adds all valid urls to {@code self.places2go} that are
     # not already in there.
@@ -92,7 +93,7 @@ class Crawler:
     # @updates self.places2go
     #
     def get(self, starting_url: str):
-        response = requests.get(starting_url)
+        response = requests.get(starting_url, {"User-Agent": "SimpleSpider"})
 
         if not response.ok:
             msg = ("Error: " + str(response.status_code)
@@ -182,8 +183,8 @@ class Crawler:
                 self.saveState(self.listFileName, self.visitedFileName)
             print("list size: " + str(len(self.places2go)))
 
-            # be nice to webservers, sleep for 600s (12min)
-            # _coolSleep(60 * 12)
+            # be nice to webservers, sleep for 60 * 12 = 600s (12min)
+            Crawler._coolSleep(600)
 
     # @param nap_length
     #                   the time to sleep in seconds
