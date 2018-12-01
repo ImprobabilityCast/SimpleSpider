@@ -117,7 +117,7 @@ class Crawler:
         # Don't need to look for links if the file is binary,
         # and not going to bother looking through non-html
         # responses for possible URLs
-        if "text/html" == response.headers["content-type"]:
+        if "text" in response.headers["content-type"]:
             raw_links = set()
             for n in extractNamedNodes(response.text, ["a", "img", "script", "link"]):
                 if 'href' in n.attributes:
@@ -132,7 +132,7 @@ class Crawler:
                     self.places2go.append(parsed)
                     self.newURLCount += 1
                     print("adding url: " + parsed)
-    
+
 
     # replaces self.places2go
     # replaces self.visited
@@ -170,6 +170,7 @@ class Crawler:
         self.usedURLCount = 0
         self.newURLCount = 0
 
+
     def recursivePull(self):
         while 0 != len(self.places2go):
             url = self.places2go.popleft()
@@ -183,8 +184,9 @@ class Crawler:
                 self.saveState(self.listFileName, self.visitedFileName)
             print("list size: " + str(len(self.places2go)))
 
-            # be nice to webservers, sleep for 60 * 12 = 600s (12min)
-            Crawler._coolSleep(600)
+            # be nice to webservers, sleep for 12min
+            Crawler._coolSleep(60 * 12)
+
 
     # @param nap_length
     #                   the time to sleep in seconds
@@ -201,12 +203,14 @@ class Crawler:
             time.sleep(1)
             nap_length -= 1
 
+
     @staticmethod
     def _recursiveMkdir(path):
         if not os.path.exists(path):
             pair = os.path.split(path)
             Crawler._recursiveMkdir(pair[0])
             os.mkdir(path)
+
 
     @staticmethod
     def _loadLines(file_name: str) -> list:
