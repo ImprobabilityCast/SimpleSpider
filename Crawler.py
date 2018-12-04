@@ -36,6 +36,8 @@ class Crawler:
         self.protocolPattern = re.compile("((f|ht)tps?://)")
         self.invalidPathChars = re.compile("[<>:\"\\|\\?\\*]")
 
+        self.lastSaveTime = 0
+
 
     def __enter__(self):
         return self
@@ -179,9 +181,13 @@ class Crawler:
             # self.get may update the length of self.places2go
             print("\nDownloading: " + url)
             self.get(url)
-            if self.usedURLCount == 12:
+            
+            # save current state if it's been 5min or if we've used 12 URLs
+            t = time.time()
+            if t - self.lastSaveTime > 60 * 5 or self.usedURLCount == 12:
                 print("Saving current state...")
                 self.saveState(self.listFileName, self.visitedFileName)
+                self.lastSaveTime = t
             print("list size: " + str(len(self.places2go)))
 
             # be nice to webservers, sleep for 12min
