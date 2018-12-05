@@ -50,21 +50,32 @@ class Crawler:
     # returns None if the url is from a different domain
     # or if the url is in a directory above the one the Crawler was
     # initialized to.
-    def parseLink(self, context: str, link: str) -> str:
+    def parseLink(self, context: URLHelper, link: str) -> str:
         url = URLHelper.addSlash(link)
         url = URLHelper.removeBookmark(url)
-        root = context[:context.find(self.context) + len(self.context)]
         result = None
         
         if self.protocolPattern.match(url) == None:
             url_len = len(url)
-            if url_len > 1 and url[0:2] == "./":
-                result = context + url[2:]
+            if url_len > 1 and url[0] == ".":
+                if url[1] == "/":
+                    result = context.fullPath + url[2:]
+                elif url[1] == ".":
+                    idx = context.currentDirectory[:-1].rfind("/")
+                    if idx != -1:
+                        idx += len(context.protocol)
+                        result = context.fullPath[:idx] + url[:3]
+                else:
+                    result = context.fullPath + url
+            
             elif url_len == 1 and url[0] == "/":
-                result = root + "/"
+                result = context.path + "/"
             # filter out  empty urls and urls like mailto:me@me.com
             elif url_len != 0 and ":" not in url:
-                result = context + url
+                if url[0] == "/":
+                    result = context.protocol + context.domain + url
+                else:
+                    result = context.fullPath + url
         else:
             idx = url.find("://") + 3
             if (url.find(self.context, idx) == 0
@@ -91,11 +102,13 @@ class Crawler:
     # Downloads the file that {@code starting_url} points to
     # and adds all valid urls to {@code self.places2go} that are
     # not already in there.
+    #
+    # Returns the provided starting_url or the URL it redirects to
     # 
     # @updates self.places2go
     #
     def get(self, starting_url: str):
-        response = requests.get(starting_url, {"User-Agent": "SimpleSpider"})
+        response = requests.get(starting_url, allow_redirects=False, headers={"User-Agent": "SimpleSpider"})
 
         if not response.ok:
             msg = ("Error: " + str(response.status_code)
@@ -103,23 +116,19 @@ class Crawler:
             print(msg)
             with open("error.log", "a") as f:
                 f.write(msg + "\n")
-            return
+            return starting_url
+        
+        if response.is_redirect:
+            return self.get(response.headers['Location'])
 
         url_obj = URLHelper(starting_url)
-        file_path = self.place + url_obj.currentDirectory
-
-        # assume the root file name is 'index.html'
-        if starting_url[-1] == '/':
-            file_path += "index.html"
-        else:
-            file_path += url_obj.fileName
-        
+        file_path = self.place + url_obj.currentDirectory + url_obj.fileName
         self.save(file_path, response.content)
         
         # Don't need to look for links if the file is binary,
         # and not going to bother looking through non-html
         # responses for possible URLs
-        if "text" in response.headers["content-type"]:
+        if "text/html" in response.headers["Content-Type"]:
             raw_links = set()
             for n in extractNamedNodes(response.text, ["a", "img", "script", "link"]):
                 if 'href' in n.attributes:
@@ -128,26 +137,32 @@ class Crawler:
                     raw_links.add(n.attributes['src'])
             
             while 0 < len(raw_links):
-                parsed = self.parseLink(url_obj.fullPath, raw_links.pop())
+                parsed = self.parseLink(url_obj, raw_links.pop())
                 if (parsed is not None and parsed not in self.places2go
                         and parsed not in self.visited):
                     self.places2go.append(parsed)
                     self.newURLCount += 1
                     print("adding url: " + parsed)
+        
+        return starting_url
 
 
-    # replaces self.places2go
-    # replaces self.visited
+    # updates self.places2go
+    # updates self.visited
+    # replaces self.listFileName
+    # replaces self.visitedFileName
     # clears self.newURLCount
     # clears self.usedURLCount
     def loadState(self, list_file_name: str, visited_file_name: str):
         loadedList = frozenset(Crawler._loadLines(list_file_name))
         loadedVisted = Crawler._loadLines(visited_file_name)
-        self.places2go = deque()
-        self.places2go.extend(loadedList.difference(loadedVisted))
-        self.visited = loadedVisted
+        newList = loadedList.difference(loadedVisted)
+        self.places2go = deque(frozenset(self.places2go).union(newList))
+        self.visited = list(frozenset(self.visited).union(loadedVisted))
         self.newURLCount = 0
         self.usedURLCount = 0
+        self.listFileName = list_file_name
+        self.visitedFileName = visited_file_name
 
 
     # clears self.usedURLCount
@@ -173,6 +188,17 @@ class Crawler:
         self.newURLCount = 0
 
 
+    # clears self.places2go
+    # clears self.visited
+    # clears self.usedURLCount
+    # clears self.newURLCount
+    def clearLists(self):
+        self.places2go.clear()
+        self.visited.clear()
+        self.newURLCount = 0
+        self.usedURLCount = 0
+
+
     def recursivePull(self):
         while 0 != len(self.places2go):
             url = self.places2go.popleft()
@@ -180,7 +206,11 @@ class Crawler:
             self.usedURLCount += 1
             # self.get may update the length of self.places2go
             print("\nDownloading: " + url)
-            self.get(url)
+
+            # check for redirects
+            newURL = self.get(url)
+            if newURL != url:
+                self.visited.append(newURL)
             
             # save current state if it's been 5min or if we've used 12 URLs
             t = time.time()
@@ -191,7 +221,7 @@ class Crawler:
             print("list size: " + str(len(self.places2go)))
 
             # be nice to webservers, sleep for 12min
-            Crawler._coolSleep(60 * 12)
+            #Crawler._coolSleep(60 * 12)
 
 
     # @param nap_length
