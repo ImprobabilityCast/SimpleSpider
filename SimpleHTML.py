@@ -41,13 +41,13 @@ def extractThruToStr(chars: deque, tokens) -> deque:
     return result
 
 def discardThruToStr(chars: deque, tokens):
-    currentMatch = deque()
-    while len(chars) > 0 and len(currentMatch) != len(tokens):
+    currentMatch = 0
+    while len(chars) > 0 and currentMatch != len(tokens):
         ch = chars.popleft()
-        if tokens[len(currentMatch)] == ch:
-            currentMatch.append(ch)
+        if tokens[currentMatch] == ch:
+            currentMatch += 1
         else:
-            currentMatch.clear()
+            currentMatch = 0
 
 # '>' or '/>' must be a suffix of achars
 def parseAttributes(achars: deque) -> dict:
