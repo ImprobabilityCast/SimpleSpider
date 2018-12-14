@@ -63,13 +63,14 @@ class Crawler:
                 elif url[1] == ".":
                     idx = context.currentDirectory[:-1].rfind("/")
                     if idx != -1:
-                        idx += len(context.protocol)
-                        result = context.fullPath[:idx] + url[:3]
+                        # add 1 to keep slash at the end of the parent directory
+                        idx += len(context.protocol) + 1
+                        result = context.fullPath[:idx] + url[3:]
                 else:
                     result = context.fullPath + url
             
             elif url_len == 1 and url[0] == "/":
-                result = context.path + "/"
+                result = context.protocol + context.domain
             # filter out  empty urls and urls like mailto:me@me.com
             elif url_len != 0 and ":" not in url:
                 if url[0] == "/":
@@ -77,9 +78,10 @@ class Crawler:
                 else:
                     result = context.fullPath + url
         else:
+            # check if URL is from same domain & subdomain
             idx = url.find("://") + 3
-            if (url.find(self.context, idx) == 0
-                    or url.find("www." + self.context, idx) == 0):
+            if (url.find(self.context, idx) == idx
+                    or url.find("www." + self.context, idx) == idx):
                 result = url
 
         return result
@@ -105,7 +107,7 @@ class Crawler:
     #
     # Returns the provided starting_url or the URL it redirects to
     # 
-    # @updates self.places2go
+    # updates self.places2go
     #
     def get(self, starting_url: str):
         response = requests.get(starting_url, allow_redirects=False, headers={"User-Agent": "SimpleSpider"})
