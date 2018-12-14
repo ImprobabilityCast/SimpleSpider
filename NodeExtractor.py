@@ -12,23 +12,22 @@ def extractNamedNodes(text: str, names: Iterable) -> set:
     simpleHTML.skipDoc(tokens)
     result = set()
     while len(tokens) > 0:
-        node = _extractNodes(tokens, names)
+        node = _extractNode(tokens, names)
         if node is not None:
             result.add(node)
     return result
 
-
+# Returns a node having one of the names in names,
+# otherwise returns None.
 # length of chars must be > 0
-def _extractNodes(chars: deque, names: Iterable) -> set:
+def _extractNode(chars: deque, names: Iterable) -> set:
     node = HTMLNode(chars.popleft().lower())
 
     # parse attributes
     attributes = simpleHTML.extractThruToStr(chars, '>')
     node.attributes = simpleHTML.parseAttributes(attributes)
 
-    # if not self-closing tag or something like a meta tag
-    # if attributes[0] == '>' and node.name not in simpleHTML._zeroChildNames:
-        # ignore script and style nodes
+    # ignore script and style nodes
     if node.name == 'script' or node.name == 'style':
         simpleHTML.discardThruToStr(chars, ['<', '/', node.name, '>'])
     

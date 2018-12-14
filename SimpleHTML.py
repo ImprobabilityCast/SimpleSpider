@@ -17,7 +17,7 @@ def parse(text: str) -> HTMLNode:
 # stopping at the first token following a '<' that isn't '!' or '?'
 def skipDoc(chars: deque):
     if chars[0] == '<':
-        first = chars.popleft()
+        chars.popleft()
         second = chars.popleft()
         if second == '?':
             discardThruToStr(chars, '?>')
@@ -27,7 +27,6 @@ def skipDoc(chars: deque):
             skipDoc(chars)
         else:
             chars.appendleft(second)
-           # chars.appendleft(first)
 
 def extractThruToStr(chars: deque, tokens) -> deque:
     result = deque()
@@ -54,7 +53,7 @@ def discardThruToStr(chars: deque, tokens):
 # '>' or '/>' must be a suffix of achars
 def parseAttributes(achars: deque) -> dict:
     result = dict()
-    
+
     while achars[0] != '>' and achars[0] != '/':
         name = achars.popleft()
         value = deque()

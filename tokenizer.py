@@ -2,6 +2,8 @@
 
 from collections import deque
 
+# TODO : These tokens are all single characters, perhaps we can do without a tokenizer
+
 _removeTokens = frozenset(["\n", "\r", "\t", " "])
 _breakOnTokens = frozenset(["<", ">", "?", "!", "/", "-", "\"", "'", "\\", "="])
 
